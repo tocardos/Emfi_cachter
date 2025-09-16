@@ -1,0 +1,98 @@
+{% extends "dbase.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>{{ 'Add Frequency Band' if mode=='add' else 'Edit Frequency Band' }}</h2>
+
+        <form action="{{ url_for('add') if mode=='add' else url_for('edit_band', band_id=band.id) }}" method="post">
+            
+            <!-- Country -->
+            <div class="mb-3">
+                <label for="country" class="form-label">Country</label>
+                <select name="country" id="country" class="form-select" required>
+                    <option value="">Select a country</option>
+                    {% for country in countries %}
+                        <option value="{{ country.country_name }}"
+                          {% if mode=='edit' and band.country_name == country.country_name %}selected{% endif %}>
+                          {{ country.country_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Operator -->
+            <div class="mb-3">
+                <label for="operator" class="form-label">Operator</label>
+                <select name="operator" id="operator" class="form-select" required>
+                    <option value="">Select an operator</option>
+                    {% for operator in operators %}
+                        <option value="{{ operator.operator_name }}"
+                          {% if mode=='edit' and band.operator_name == operator.operator_name %}selected{% endif %}>
+                          {{ operator.operator_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- EARFCN/ARFCN -->
+            <div class="mb-3">
+                <label for="earfcn_arfcn" class="form-label">EARFCN/ARFCN</label>
+                <input type="number" class="form-control" id="earfcn_arfcn" 
+                       name="earfcn_arfcn" 
+                       value="{{ band.earfcn_arfcn if band else '' }}" required>
+            </div>
+
+            <!-- Frequency -->
+            <div class="mb-3">
+                <label for="frequency_mhz" class="form-label">Frequency (MHz)</label>
+                <input type="number" step="0.01" class="form-control" id="frequency_mhz" 
+                       name="frequency_mhz" 
+                       value="{{ band.frequency_mhz if band else '' }}" required>
+            </div>
+
+            <!-- Bandwidth -->
+            <div class="mb-3">
+                <label for="bandwidth_mhz" class="form-label">Bandwidth (MHz)</label>
+                <input type="number" step="0.1" class="form-control" id="bandwidth_mhz" 
+                       name="bandwidth_mhz" 
+                       value="{{ band.bandwidth_mhz if band else '' }}" required>
+            </div>
+
+            <!-- Technology -->
+            <div class="mb-3">
+                <label for="technology" class="form-label">Technology</label>
+                <select name="technology" id="technology" class="form-select" required>
+                    <option value="">Select technology</option>
+                    {% for tech in ['2G', '3G', '4G', '5G'] %}
+                        <option value="{{ tech }}"
+                          {% if mode=='edit' and band.technology == tech %}selected{% endif %}>
+                          {{ tech }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- MNC -->
+            <div class="mb-3">
+                <label for="mnc" class="form-label">MNC</label>
+                <input type="number" class="form-control" id="mnc" name="mnc"
+                       value="{{ band.mnc if band else '' }}" required>
+            </div>
+
+            <!-- MCC -->
+            <div class="mb-3">
+                <label for="mcc" class="form-label">MCC</label>
+                <input type="number" class="form-control" id="mcc" name="mcc"
+                       value="{{ band.mcc if band else '' }}" required>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn btn-primary">
+                {{ 'Add Frequency Band' if mode=='add' else 'Save Changes' }}
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

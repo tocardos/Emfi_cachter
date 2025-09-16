@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Settings</h1>
+    
+    <!-- Current Settings Display -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Current Settings</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>TX Gain:</strong> <span id="current-tx-gain">{{ current_settings.tx_gain }}</span></p>
+                    <p><strong>Country:</strong> {{ current_settings.country_name }} ({{ current_settings.mcc }})</p>
+                    <p><strong>Operator:</strong> {{ current_settings.operator_name }} ({{ current_settings.mnc }})</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>EARFCN:</strong> {{ current_settings.earfcn }}</p>
+                    <p><strong>Frequency:</strong> {{ current_settings.frequency }} MHz</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Form -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Update Settings</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="settings-form">
+                {{ form.hidden_tag() }}
+                
+                <!-- TX Gain Slider -->
+                <div class="form-group mb-4">
+                    <label for="tx_gain" class="form-label">
+                        <strong>TX Gain: <span id="tx-gain-value">{{ form.tx_gain.data }}</span></strong>
+                    </label>
+                    {{ form.tx_gain(class="form-range", id="tx_gain", oninput="updateTxGainValue(this.value)") }}
+                    <div class="d-flex justify-content-between">
+                        <small>20</small>
+                        <small>100</small>
+                    </div>
+                </div>
+
+                <!-- Country Selection -->
+                <div class="form-group mb-3">
+                    <label for="country" class="form-label"><strong>Country:</strong></label>
+                    {{ form.country(class="form-select", id="country", onchange="updateOperators()") }}
+                </div>
+
+                <!-- Operator Selection -->
+                <div class="form-group mb-3">
+                    <label for="operator" class="form-label"><strong>Operator:</strong></label>
+                    {{ form.operator(class="form-select", id="operator", onchange="updateEarfcns()") }}
+                </div>
+
+                <!-- EARFCN Selection -->
+                <div class="form-group mb-3">
+                    <label for="earfcn" class="form-label"><strong>EARFCN:</strong></label>
+                    {{ form.earfcn(class="form-select", id="earfcn", onchange="updateFrequency()") }}
+                </div>
+
+                <!-- Frequency Display -->
+                <div class="form-group mb-4">
+                    <label class="form-label"><strong>Frequency:</strong></label>
+                    <input type="text" class="form-control" id="frequency-display" readonly>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Update Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update TX Gain display
+function updateTxGainValue(value) {
+    document.getElementById('tx-gain-value').textContent = value;
+}
+
+// Update operators based on selected country
+function updateOperators() {
+    const countrySelect = document.getElementById('country');
+    const operatorSelect = document.getElementById('operator');
+    const earfcnSelect = document.getElementById('earfcn');
+    
+    const selectedCountry = countrySelect.value;
+    
+    // Clear dependent dropdowns
+    operatorSelect.innerHTML = '<option value="">Select Operator</option>';
+    earfcnSelect.innerHTML = '<option value="">Select EARFCN</option>';
+    document.getElementById('frequency-display').value = '';
+    
+    if (selectedCountry) {
+        fetch(`/get_operators/${selectedCountry}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(operator => {
+                    const option = document.createElement('option');
+                    option.value = operator.mnc;
+                    option.textContent = `${operator.name} (${operator.mnc})`;
+                    operatorSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching operators:', error));
+    }
+}
+
+// Update EARFCNs based on selected operator
+function updateEarfcns() {
+    const countrySelect = document.getElementById('country');
+    const operatorSelect = document.getElementById('operator');
+    const earfcnSelect = document.getElementById('earfcn');
+    
+    const selectedCountry = countrySelect.value;
+    const selectedOperator = operatorSelect.value;
+    
+    // Clear dependent dropdown
+    earfcnSelect.innerHTML = '<option value="">Select EARFCN</option>';
+    document.getElementById('frequency-display').value = '';
+    
+    if (selectedCountry && selectedOperator) {
+        fetch(`/get_earfcns/${selectedCountry}/${selectedOperator}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(earfcn => {
+                    const option = document.createElement('option');
+                    option.value = earfcn.earfcn;
+                    option.textContent = `${earfcn.earfcn} (${earfcn.frequency} MHz)`;
+                    option.dataset.frequency = earfcn.frequency;
+                    earfcnSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching EARFCNs:', error));
+    }
+}
+
+// Update frequency display when EARFCN is selected
+function updateFrequency() {
+    const earfcnSelect = document.getElementById('earfcn');
+    const frequencyDisplay = document.getElementById('frequency-display');
+    
+    const selectedOption = earfcnSelect.options[earfcnSelect.selectedIndex];
+    
+    if (selectedOption && selectedOption.dataset.frequency) {
+        frequencyDisplay.value = selectedOption.dataset.frequency + ' MHz';
+    } else {
+        frequencyDisplay.value = '';
+    }
+}
+
+// Initialize form on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize operators if country is pre-selected
+    if (document.getElementById('country').value) {
+        updateOperators();
+        
+        // Wait for operators to load, then update EARFCNs if operator is pre-selected
+        setTimeout(() => {
+            if (document.getElementById('operator').value) {
+                updateEarfcns();
+                
+                // Wait for EARFCNs to load, then update frequency display
+                setTimeout(() => {
+                    updateFrequency();
+                }, 100);
+            }
+        }, 100);
+    }
+});
+</script>
+{% endblock %}

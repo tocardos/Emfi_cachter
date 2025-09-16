@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1>Home</h1>
+    <p>TSCM Foss EPC Server web app.</p>
+    <button id="startServer" class="btn btn-primary">Start EPC Server</button>
+    <button id="stopServer" class="btn btn-danger">Stop EPC Server</button>
+    <p id="serverStatus"></p>
+</div>
+<div class="text-center">
+    <h1>ENB</h1>
+    <button id="startENB" class="btn btn-primary">Start ENB</button>
+    <button id="stopENB" class="btn btn-danger">Stop ENB</button>
+    <p id="ENBStatus"></p>
+</div>
+<div class="text-center">
+<h2>Attach reject cause</h2>
+<form id="serverModeForm">
+    <label>
+        <input type="radio" name="serverMode" value="LIBLTE_MME_EMM_CAUSE_NO_SUITABLE_CELLS_IN_TRACKING_AREA" > RELEASE
+    </label><br>
+    <label>
+        <input type="radio" name="serverMode" value="LIBLTE_MME_EMM_CAUSE_EPS_SERVICES_AND_NON_EPS_SERVICES_NOT_ALLOWED"> DOS
+    </label><br>
+    <label>
+        <input type="radio" name="serverMode" value="LIBLTE_MME_EMM_CAUSE_UE_SECURITY_CAPABILITIES_MISMATCH"> DOWNGRADE
+    </label>
+</form>
+</div>
+
+<div>
+    <h2>ENB Console Output</h2>
+    <!-- <div class="console-output" style="background-color: #000; color: #00ff00; padding: 10px; height: 400px; overflow-y: auto; font-family: monospace;"> -->
+	<div class="console-output">	
+        <pre id="consoleLog"></pre>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+
+<script>
+    const socket = io();
+    
+    // Console output management
+    let consoleLines = [];
+    const MAX_CONSOLE_LINES = 100;
+    let consoleSource = null;
+
+    document.getElementById('startServer').addEventListener('click', function() {
+        fetch('/start_server', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('serverStatus').textContent = data.status;
+            });
+    });
+
+    document.getElementById('stopServer').addEventListener('click', function() {
+        fetch('/stop_server', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('serverStatus').textContent = data.status;
+            });
+    });
+
+    document.getElementById('serverModeForm').addEventListener('change', (event) => {
+        if (event.target.name === 'serverMode') {
+            const selectedMode = event.target.value;
+            socket.emit('change_server_mode', { mode: selectedMode });
+        }
+    });
+
+    socket.on('current_mode', function(mode) {
+        const radioButtons = document.querySelectorAll('input[name="serverMode"]');
+        radioButtons.forEach(radio => {
+            if (radio.value === mode) {
+                radio.checked = true;
+            } else {
+                radio.checked = false;
+            }
+        });
+    });
+    
+    socket.on('server_status', function(data) {
+        document.getElementById('serverStatus').textContent = data.status;
+    });
+
+    function updateServerStatus() {
+        fetch('/server_status', {method: 'GET'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('serverStatus').textContent = data.running ? 'EPC Server is running' : 'EPC Server is stopped';
+            });
+    }
+
+    function updateENBStatus() {
+        fetch('/ENB_status', {method: 'GET'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ENBStatus').textContent = data.running ? 'ENB is running' : 'ENB is stopped';
+            });
+    }
+
+    function startConsoleEventSource() {
+        if (consoleSource) {
+            consoleSource.close();
+        }
+        
+        consoleSource = new EventSource('/events');
+        
+        consoleSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'console') {
+                    consoleLines.push(data.data);
+                    if (consoleLines.length > MAX_CONSOLE_LINES) {
+                        consoleLines.shift();
+                    }
+                    const consoleLog = document.getElementById('consoleLog');
+                    consoleLog.textContent = consoleLines.join('\n');
+                    consoleLog.scrollTop = consoleLog.scrollHeight;
+                }
+            } catch (e) {
+                console.error('Error parsing console event:', e);
+            }
+        };
+        
+        consoleSource.onerror = function(event) {
+            console.error('EventSource error:', event);
+        };
+    }
+
+    function stopConsoleEventSource() {
+        if (consoleSource) {
+            consoleSource.close();
+            consoleSource = null;
+        }
+    }
+
+    document.getElementById('startENB').addEventListener('click', function() {
+        fetch('/start_ENB', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ENBStatus').textContent = data.status;
+                if (data.status === 'ENB started') {
+                    // Clear previous console output
+                    consoleLines = [];
+                    document.getElementById('consoleLog').textContent = '';
+                    // Start listening for console output
+                    startConsoleEventSource();
+                }
+            });
+    });
+
+    document.getElementById('stopENB').addEventListener('click', function() {
+        fetch('/stop_ENB', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ENBStatus').textContent = data.status;
+                if (data.status.includes('stopped')) {
+                    // Stop listening for console output
+                    stopConsoleEventSource();
+                }
+            });
+    });
+
+    socket.on('ENB_status', function(data) {
+        document.getElementById('ENBStatus').textContent = data.status;
+        if (data.status === 'ENB started') {
+            startConsoleEventSource();
+        } else if (data.status === 'ENB stopped') {
+            stopConsoleEventSource();
+        }
+    });
+
+    // Fetch server status when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateServerStatus();
+        updateENBStatus();
+    });
+
+    // Clean up event source when page is about to unload
+    window.addEventListener('beforeunload', function() {
+        stopConsoleEventSource();
+    });
+</script>
+{% endblock %}

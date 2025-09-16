@@ -1,0 +1,82 @@
+{% extends "dbase.html" %}
+
+{% block content %}
+
+<style>
+    .selectable-row:hover {
+    background-color: #444 !important;
+    cursor: pointer;
+}
+.selectable-row.selected {
+    background-color: #0066cc !important;
+    color: #fff;
+}
+</style>
+<div class="row">
+    <div class="col-12">
+        <h2>Results for {{ operator }} in {{ country }}</h2>
+        
+        {% if results %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Operator</th>
+                            <th>EARFCN/ARFCN</th>
+                            <th>Frequency (MHz)</th>
+                            <th>Bandwidth (MHz)</th>
+                            <th>Technology</th>
+                            <th>MNC</th>
+                            <th>MCC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                            <tr class="selectable-row"
+                            data-id="{{ result.id }}"
+                            data-operator="{{ result.operator_name }}"
+                            data-earfcn="{{ result.earfcn_arfcn }}"
+                            data-frequency="{{ result.frequency_mhz }}"
+                            data-bandwidth="{{ result.bandwidth_mhz }}"
+                            data-technology="{{ result.technology }}"
+                            data-mnc="{{ result.mnc }}"
+                            data-mcc="{{ result.mcc }}">
+
+                                <td>{{ result.operator_name }}</td>
+                                <td>{{ result.earfcn_arfcn }}</td>
+                                <td>{{ result.frequency_mhz }}</td>
+                                <td>{{ result.bandwidth_mhz }}</td>
+                                <td>{{ result.technology }}</td>
+                                <td>{{ result.mnc }}</td>
+                                <td>{{ result.mcc }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No frequency bands found for this operator in this country.
+            </div>
+        {% endif %}
+        
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Search</a>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".selectable-row").forEach(row => {
+        row.addEventListener("click", () => {
+            // highlight selected row
+            document.querySelectorAll(".selectable-row").forEach(r => r.classList.remove("selected"));
+            row.classList.add("selected");
+
+            const bandId = row.dataset.id;
+
+            window.location.href = `/edit_band/${bandId}`;
+                            
+        });
+    });
+});
+</script>
+{% endblock %}

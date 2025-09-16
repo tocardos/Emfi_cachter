@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Table{% endblock %}
+
+{% block content %}
+
+<!--
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/jquery.dataTables.css') }}">
+<script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='js/jquery.dataTables.js') }}"></script>
+-->
+
+ <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script> 
+	
+<!--    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery.dataTables.min.css') }}"> -->
+ <!--   
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+-->
+   <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>  
+   
+    <script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script> 
+	
+	
+	<script>
+    $(document).ready(function() {
+        // Force styles after DataTables initializes
+        setTimeout(function() {
+            $('<style>')
+                .prop('type', 'text/css')
+                .html(`
+                    table.dataTable thead th,
+                    table.dataTable thead td {
+                        background-color: #d3d3d3 !important;
+                        color: #ffffff !important;
+                        background-image: none !important;
+                    }
+                    table.dataTable tbody th,
+                    table.dataTable tbody td {
+                        background-color: #f9f9f9 !important;
+                        color: #ffffff !important;
+                        background-image: none !important;
+                    }
+                `)
+                .appendTo('head');
+        }, 100);
+    });
+</script>
+    
+
+<div class="container">
+    <h1>IMSI Table</h1>
+    <table id="data-table" class="display" border="1">
+        <thead>
+            <tr>
+                <th>IMSI</th>
+                <th class="hidden-xs">Connection Type</th>
+                <th>FirstSeen</th>
+                <th>LastSeen</th>
+                <th>Count</th>
+                <th>Attach Reject</th>
+                <th>Whitelist</th>
+                <th>Alias</th>
+                <th class="hidden-xs">Fingerprint</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Table data will be inserted here -->
+        </tbody>
+    </table>
+</div>
+
+
+<script>
+    
+    //$(document).ready(function () {
+    // Initialize DataTables
+    
+    const table = $('#data-table').DataTable({
+            "order": [[2, "desc"]],  // Order by the third column (timestamp) in descending order
+            "responsive": true, // Make table responsive
+            "columns": [
+                null,
+                { className: "hidden-xs" },
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                { className: "hidden-xs" }
+            ]
+        });
+    function fetchData() {
+        $.ajax({
+            url: '/api/fetch_data',
+            method: 'GET',
+            success: function (data) {
+                table.clear().draw(); 
+                data.forEach(function (row) {
+                        let date = new Date(row.lastseen);
+
+                // Format as DD/MM/YYYY HH:MM:SS in local timezone
+                let formattedDate = date.toLocaleString("fr-FR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                   // timeZoneName: "short"   // add "CET", "CEST", etc. (optional)
+                });
+                let fseen = new Date(row.firstseen);
+                let formattedFseen = fseen.toLocaleString("fr-FR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                   // timeZoneName: "short"   // add "CET", "CEST", etc. (optional)
+                });
+                        table.row.add([
+                            row.unique_id,
+                            row.connection_type,
+                            //row.lastseen,
+                            formattedFseen,
+                            formattedDate,
+                            row.count,
+                
+               
+                        `<select data-unique-id="${row.unique_id}" class="action-select">
+                                    <option value="RELEASE" ${row.action === 'RELEASE' ? 'selected' : ''}>RELEASE</option>
+                                    <option value="DOS" ${row.action === 'DOS' ? 'selected' : ''}>DOS</option>
+                                    <option value="DOWNGRADE" ${row.action === 'DOWNGRADE' ? 'selected' : ''}>DOWNGRADE</option>
+                                    <option value="NoData" ${row.action === 'NoData' ? 'selected' : ''}>NoData</option>
+                                </select>`,
+                            
+                        
+                                `<select data-unique-id="${row.unique_id}" class="whitelist-select">
+                                        <option value="Unknown" ${row.whitelist === 'Unknown' ? 'selected' : ''}>Unknown</option>
+                                        <option value="Target" ${row.whitelist === 'Target' ? 'selected' : ''}>Target</option>
+                                        <option value="Friend" ${row.whitelist === 'Friend' ? 'selected' : ''}>Friend</option>
+                                    </select>`,
+                        
+                            
+                                    `<input type="text" data-unique-id="${row.unique_id}" class="alias-input" value="${row.alias}">`,
+                                
+                                    row.fingerprint ? JSON.stringify(row.fingerprint) : ''
+                        
+                                ]).draw(false);  // Add the new row to the table
+                });
+                
+
+                $('.action-select').change(function () {
+                    const uniqueId = $(this).data('unique-id');
+                    const action = $(this).val();
+                    $.ajax({
+                        url: '/api/update_action',
+                        contentType: 'application/json',
+                        method: 'POST',
+                        data: JSON.stringify({ unique_id: uniqueId, action: action }),
+                        success: function (response) {
+                            console.log(response);
+                        }
+                    });
+                });
+
+                $('.whitelist-select').change(function () {
+                    const uniqueId = $(this).data('unique-id');
+                    //const whitelist = $(this).is(':checked');
+                    const whitelist = $(this).val();
+                    $.ajax({
+                        url: '/api/update_whitelist',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ unique_id: uniqueId, whitelist: whitelist }),
+                        success: function (response) {
+                            console.log(response);
+                        }
+                    });
+                });
+                $('.alias-input').blur(function () {
+                        const uniqueId = $(this).data('unique-id');
+                        const alias = $(this).val();
+                        $.ajax({
+                            url: '/api/update_alias',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ unique_id: uniqueId, alias: alias }),
+                            success: function (response) {
+                                console.log(response);
+                            }
+                        });
+                 });
+            },
+            error: function (xhr, status, error) {
+                console.error('Error fetching data:', error);
+            }
+        });
+    
+        
+    }
+
+
+    fetchData();
+
+    const socket = io();
+    socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+    socket.on('update_table', function () {
+        console.log('update_table event received');
+        fetchData();
+    });
+//});
+</script>
+</script>
+<style>
+    @media screen and (max-width: 768px) {
+        .hidden-xs {
+            display: none;
+        }
+        table {
+            font-size: 12px;
+        }
+        th, td {
+            padding: 6px 8px;
+        }
+    }
+    
+    body {
+        font-family: Arial, sans-serif;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    th, td {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+    }
+
+    /* Ultra-specific selectors to override ALL possible DataTables styles */
+    table.dataTable.display thead th,
+    table.dataTable thead th,
+    #data-table.display thead th,
+    #data-table thead th,
+    .display thead th,
+    div.dataTables_wrapper table.dataTable thead th {
+        background-color: #d3d3d3 !important;
+        color: #000000 !important;
+        background-image: none !important;
+        background: #d3d3d3 !important;
+    }
+
+    table.dataTable.display tbody td,
+    table.dataTable tbody td,
+    #data-table.display tbody td,
+    #data-table tbody td,
+    .display tbody td,
+    div.dataTables_wrapper table.dataTable tbody td {
+        background-color: #f9f9f9 !important;
+        color: #000000 !important;
+        background-image: none !important;
+        background: #f9f9f9 !important;
+    }
+
+    /* Override DataTables sorting styles */
+    table.dataTable thead th.sorting,
+    table.dataTable thead th.sorting_asc,
+    table.dataTable thead th.sorting_desc,
+    table.dataTable thead th.sorting_asc_disabled,
+    table.dataTable thead th.sorting_desc_disabled {
+        background-color: #d3d3d3 !important;
+        color: #000000 !important;
+        background-image: none !important;
+    }
+
+    /* Override hover states */
+    table.dataTable tbody tr:hover td,
+    table.dataTable.display tbody tr:hover td {
+        background-color: #e9e9e9 !important;
+        color: #000000 !important;
+    }
+
+    /* Ensure input fields and selects in the table are readable */
+    #data-table input,
+    #data-table select,
+    table.dataTable input,
+    table.dataTable select {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ccc !important;
+    }
+
+    .container {
+        padding: 0;
+        width: 100%;
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,145 @@
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+/* DARK THEME (search page) */
+body.dark-theme {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body.dark-theme .container {
+    background-color: #1c1c1c;
+    color: #e0e0e0;
+}
+body.dark-theme .table td,
+body.dark-theme .table th,
+body.dark-theme .alert {
+    color: #ffffff !important;
+}
+
+/* Dark theme overrides for cards and forms */
+body.dark-theme .card {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #444;
+}
+
+body.dark-theme .card-header {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border-bottom: 1px solid #444;
+}
+
+body.dark-theme .card-body {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+/* Form elements */
+body.dark-theme .form-label {
+    color: #ffffff;
+}
+
+body.dark-theme .form-select,
+body.dark-theme .form-control {
+    background-color: #2a2a2a;
+    color: #ffffff;
+    border: 1px solid #555;
+}
+
+body.dark-theme .form-select option {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+/* LIGHT THEME (settings page) */
+body.light-theme {
+    background-color: #ffffff;
+    color: #000000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body.light-theme .container {
+    background-color: #ffffff;
+    color: #000000;
+}
+.navbar {
+    background-color: #1c1c1c;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.nav-link {
+    color: #e0e0e0 !important;
+}
+
+.nav-link:hover {
+    color: #a0a0a0 !important;
+}
+
+.container {
+    padding: 20px;
+    background-color: #1c1c1c;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    color: #e0e0e0 !important;
+}
+
+button {
+    margin-top: 10px;
+    color: #ffffff;
+}
+
+button.btn-primary {
+    background-color: #6200ea;
+    border-color: #6200ea;
+}
+
+button.btn-primary:hover {
+    background-color: #3700b3;
+    border-color: #3700b3;
+}
+
+button.btn-danger {
+    background-color: #b00020;
+    border-color: #b00020;
+}
+
+button.btn-danger:hover {
+    background-color: #7f0000;
+    border-color: #7f0000;
+}
+
+#serverStatus {
+    margin-top: 20px;
+    font-weight: bold;
+}
+.console-output {
+    background-color: #d3d3d3d7;
+    color: #ffffff;
+    font-family: monospace;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    height: 200px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+}
+
+
+.console-output pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.selectable-row:hover {
+    background-color: #444 !important;
+    cursor: pointer;
+}
+.selectable-row.selected {
+    background-color: #0066cc !important;
+    color: #fff;
+}

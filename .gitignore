@@ -1,0 +1,12 @@
+*.json
+*.db*
+EPC/*
+instance/*
+__pycache__
+config/*
+!config/.gitkeep
+IMSI_output.txt
+test_dropdown_table_simplegui.py
+epc_gui.py 
+test_enodeb.py
+

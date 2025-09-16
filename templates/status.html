@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Status{% endblock %}
+
+{% block content %}
+<h1>Rpi Status</h1>
+<div id="serverInfoContainer"></div>
+<div id="piStatusContainer"></div>
+<!--
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+-->
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+
+<script>
+    const socket = io();
+
+    function updateServerInfo(info) {
+        const container = document.getElementById('serverInfoContainer');
+        container.innerHTML = '';
+        const infoDiv = document.createElement('div');
+        infoDiv.classList.add('server-info');
+        infoDiv.innerHTML = `
+            <h3>Rpi Server: ${info.hostname}</h3>
+            <p>CPU Load: ${info.cpu}%</p>
+            <p>Memory Load: ${info.memory}%</p>
+            <p>Last Heartbeat: ${new Date(info.heartbeat * 1000).toLocaleTimeString()}</p>
+        `;
+        container.appendChild(infoDiv);
+    }
+
+    function updatePiStatus(statuses) {
+        const container = document.getElementById('piStatusContainer');
+        container.innerHTML = '';
+        for (const [piId, status] of Object.entries(statuses)) {
+            const statusDiv = document.createElement('div');
+            statusDiv.classList.add('pi-status');
+            statusDiv.innerHTML = `
+                <h3>Raspberry Pi: ${piId}</h3>
+                <p>CPU Load: ${status.cpu}%</p>
+                <p>Memory Load: ${status.memory}%</p>
+                <p>Last Heartbeat: ${new Date(status.heartbeat * 1000).toLocaleTimeString()}</p>
+            `;
+            container.appendChild(statusDiv);
+        }
+    }
+
+    socket.on('server_info', function(info) {
+        updateServerInfo(info);
+    });
+
+    socket.on('pi_status', function(statuses) {
+        updatePiStatus(statuses);
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/server_info')
+            .then(response => response.json())
+            .then(data => {
+                updateServerInfo(data);
+            });
+
+        fetch('/api/pi_status')
+            .then(response => response.json())
+            .then(data => {
+                updatePiStatus(data);
+            });
+    });
+</script>
+{% endblock %}

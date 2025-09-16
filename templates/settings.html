@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block body_class %}dark-theme{% endblock %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Radio Settings</h1>
+    
+    <!-- Current Settings Display -->
+    <div class="card mb-4">
+    <div class="card-header">
+        <h5>Current Radio Settings</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="tx-gain-slider" class="form-label"><strong>TX Gain:</strong> 
+                    <span id="current-tx-gain">{{ current_settings.tx_gain }}</span>
+                </label>
+                <input type="range" class="form-range" id="tx-gain-slider" 
+                       min="0" max="100" step="1" 
+                       value="{{ current_settings.tx_gain }}">
+                
+                <p><strong>Country:</strong> {{ current_settings.country_name }} ({{ current_settings.mcc }})</p>
+                <p><strong>Operator:</strong> {{ current_settings.operator_name }} ({{ current_settings.mnc }})</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>EARFCN:</strong> {{ current_settings.earfcn }}</p>
+                <p><strong>Frequency:</strong> {{ current_settings.frequency }} MHz</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Search Mobile Network Operator in dB</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('search') }}" method="get">
+                    <div class="mb-3">
+                        <label for="country" class="form-label">Country:</label>
+                        <select name="country" id="country" class="form-select" required>
+                            <option value="">Select a country</option>
+                            {% for country in countries %}
+                                <option value="{{ country.country_name }}">{{ country.country_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!--
+                    <div class="mb-3">
+                        <label for="operator" class="form-label">Operator:</label>
+                        <select name="operator" id="operator" class="form-select" required>
+                            <option value="">Select an operator</option>
+                            {% for operator in operators %}
+                                <option value="{{ operator.operator_name }}">{{ operator.operator_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                -->
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('tx-gain-slider').addEventListener('input', function() {
+    const value = this.value;
+    document.getElementById('current-tx-gain').textContent = value;
+    // Send to backend (AJAX)
+    fetch("{{ url_for('update_tx_gain') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+            
+        },
+        body: JSON.stringify({ tx_gain: value })
+    }).then(resp => resp.json())
+      .then(data => console.log("TX Gain updated:", data));
+    
+});
+</script>
+{% endblock %}
