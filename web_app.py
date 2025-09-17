@@ -357,6 +357,7 @@ def execute_command_nonblocking(command, config_file ,args):
     expanded_args = [
         command,
         config_file,
+        f"--enb.mme_addr 127.0.0.1",
         f"--enb.mcc {args['mcc']}",
         f"--enb.mnc {args['mnc']}",
         #f"--enb.tx_gain={args['tx_gain']}",
