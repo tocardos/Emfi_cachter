@@ -24,7 +24,9 @@ import tscm_logo
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 # adapt following working dir based on your path where you place srsran
-working_dir = '/home/baddemanax/development/python/EPC_webapp/config'
+# default is in config folder 
+#working_dir = '/home/baddemanax/development/python/EPC_webapp/config'
+working_dir = './config'
 
 # database to store phone's information
 database_url = 'sqlite:///epcserver.db'  # Example using SQLite
@@ -121,8 +123,7 @@ def search():
 
     if not country:
         return redirect(url_for('settings'))
-    #if not country or not operator:
-    #    return redirect(url_for('settings'))
+    
     
     conn = get_db_connection()
     results = conn.execute('''
@@ -157,8 +158,7 @@ def select_operator():
         'technology': 'LTE'
     })
 
-    # store in session (instead of global variable)
-    #session['current_settings'] = data
+    
     # update only the fields that come from the table click
     current_settings.update({
         'operator_name': data['operator_name'],
@@ -202,9 +202,7 @@ def receive_pi_status_update():
 def fetch_data():
     session = db_session()
     data = session.query(EPCData).all()
-    #session = EPCData()
-    #data = session.query.all()
-    #data = EPCData.query.all()
+    
     result = []
     for entry in data:
         
@@ -229,8 +227,7 @@ def update_whitelist():
     whitelist = data.get('whitelist')
     session = db_session()
     entry = session.query(EPCData).filter_by(unique_id=unique_id).first()
-    #session= EPCData()
-    #entry = session.query.filter_by(unique_id=unique_id).first()
+    
 
     if entry:
         entry.whitelist = whitelist
@@ -247,8 +244,7 @@ def update_action():
     action = data.get('action')
     session = db_session()
     entry = session.query(EPCData).filter_by(unique_id=unique_id).first()
-    #session=EPCData()
-    #entry=session.query.filter_by(unique_id=unique_id).first()
+    
     if entry:
         entry.action = action
         session.commit()
@@ -263,8 +259,7 @@ def update_alias():
     alias = data['alias']
     session = db_session()
     epc_data = session.query(EPCData).filter_by(unique_id=unique_id).first()
-    #session = EPCData()
-    #epc_data = session.query.filter_by(unique_id=unique_id).first()
+    
     if epc_data:
         epc_data.alias = alias
         session.commit()
@@ -289,7 +284,7 @@ def handle_change_server_mode(data):
     epc_current_mode= mode
     test = getattr(lte_cause, mode, None)
     server_instance.attach_reject_reason=getattr(lte_cause, mode, None) 
-    #server_instance.attach_reject_reason= LIBLTE_MME_EMM_CAUSE_NO_SUITABLE_CELLS_IN_TRACKING_AREA
+    
     print(f"Changed server mode to {mode}")
     socketio.emit('current_mode', epc_current_mode) 
 '''
@@ -357,12 +352,7 @@ def server_status():
 #-----------------------------------------------------------------------
 def execute_command_nonblocking(command, config_file ,args):
     global sp,working_dir
-    #expanded_args = ['sudo','-E']
-    #expanded_args=command
-    #expanded_args.append(command)
-    #expanded_args.append(args)
     
-    #expanded_args = [command, args]
     """
     expanded_args = [
         command,
@@ -483,7 +473,6 @@ def start_ENB():
                   'technology': 'LTE'
                 })
             sp=execute_command_nonblocking('./srsenb','./enb_proxymus.conf',current_settings)   
-            #sp=execute_command_nonblocking('/home/baddemanax/development/python/EPC_webapp/config/srsenb','/home/baddemanax/development/python/EPC_webapp/config/enb_proxymus.conf')   
             
             if sp is None:
                 logger.error(f"Failed to start subprocess enodeb")
