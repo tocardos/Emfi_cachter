@@ -369,7 +369,7 @@ def execute_command_nonblocking(command, config_file ,args):
     
     expanded_args = [
     './srsenb',
-    './enb_proxymus.conf',
+    './enb.conf',
     '--enb.mcc', str(args['mcc']),
     '--enb.mnc', str(args['mnc']),
     '--rf.dl_earfcn', str(args['earfcn']),
