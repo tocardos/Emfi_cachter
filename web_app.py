@@ -472,7 +472,7 @@ def start_ENB():
                   'bandwidth': 10,
                   'technology': 'LTE'
                 })
-            sp=execute_command_nonblocking('./srsenb','./enb_proxymus.conf',current_settings)   
+            sp=execute_command_nonblocking('./srsenb','./enb.conf',current_settings)   
             
             if sp is None:
                 logger.error(f"Failed to start subprocess enodeb")
