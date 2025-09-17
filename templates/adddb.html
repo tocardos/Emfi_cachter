@@ -18,7 +18,15 @@
                           {{ country.country_name }}
                         </option>
                     {% endfor %}
+                    
                 </select>
+                {% if mode == "add" %}
+                <!-- Only show Add button in Add mode -->
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#addCountryModal">
+                                <i class="bi bi-plus"> Add</i>
+                                
+                </button>
+                {% endif %}
             </div>
 
             <!-- Operator -->
@@ -33,6 +41,13 @@
                         </option>
                     {% endfor %}
                 </select>
+                {% if mode == "add" %}
+                <!-- Only show Add button in Add mode -->
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#addOperatorModal">
+                                <i class="bi bi-plus"> Add</i>
+                                
+                </button>
+                {% endif %}
             </div>
 
             <!-- EARFCN/ARFCN -->
@@ -93,6 +108,71 @@
             </button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
         </form>
+    </div>
+</div>
+
+<!-- Add Country Modal -->
+<div class="modal fade" id="addCountryModal" tabindex="-1" aria-labelledby="addCountryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCountryModalLabel">Add New Country</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addCountryForm" action="{{ url_for('add_country') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_country_name" class="form-label">Country Name:</label>
+                        <input type="text" class="form-control" id="new_country_name" name="country_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_country_code" class="form-label">Country Code:</label>
+                        <input type="text" class="form-control" id="new_country_code" name="country_code" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Country</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Operator Modal -->
+<div class="modal fade" id="addOperatorModal" tabindex="-1" aria-labelledby="addOperatorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addOperatorModalLabel">Add New Operator</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addOperatorForm" action="{{ url_for('add_operator') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_operator_name" class="form-label">Operator Name:</label>
+                        <input type="text" class="form-control" id="new_operator_name" name="operator_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_operator_code" class="form-label">Operator Code:</label>
+                        <input type="text" class="form-control" id="new_operator_code" name="operator_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_operator_country" class="form-label">Country:</label>
+                        <select class="form-select" id="new_operator_country" name="country" required>
+                            <option value="">Select Country</option>
+                            {% for country in countries %}
+                                <option value="{{ country.country_name }}">{{ country.country_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Operator</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

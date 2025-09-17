@@ -6,11 +6,19 @@ the code is a web wrapper around [GitHub - timom26/Intrusive-LTE-MME: This repos
 
 ## Installation
 
-sudo apt-get install python3 python3-pip
+`sudo apt-get install python3 python3-pip python3-flask python3-sqlalchemy python3-flask-sqlalchemy python3-socketio python3-flask-socketio python3-flask-cors python3-psutil`
 
-create a python venv : python -m venv --system-site-packages EPC
+create a python venv : `python -m venv --system-site-packages EPC`
+
+`source EPC/bin/activate`
 
 install missing package with pip : 
+
+`pip install pysctp`
+
+`pip install pycrate`
+
+
 
 
 
