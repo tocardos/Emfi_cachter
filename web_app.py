@@ -15,6 +15,8 @@ import  lte_cause
 from flask_sqlalchemy import SQLAlchemy
 from extension import init_db,EPCData,socketio,init_app,db
 import logging
+import signal
+import sys
 
 from config import init_database,add_frequency_band,get_operator_frequencies
 import sqlite3
@@ -41,6 +43,9 @@ CORS(app)
 
 #socketio = SocketIO(app)
 socketio.init_app(app)
+# adding a way to loop between different operator/frequencies
+loop_thread = None  # thread for the loop
+loop_running = False
 
 #app=init_app()
 
@@ -49,7 +54,9 @@ socketio.init_app(app)
 # tbc...
 init_database()
 def get_db_connection():
-    conn = sqlite3.connect('mobile_network.db')
+    conn = sqlite3.connect('mobile_network.db',
+    check_same_thread=False)
+
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -96,7 +103,7 @@ def settings():
         'frequency': 1920,
         'operator_name': 'DefaultOperator',
         'bandwidth': 10,
-        'technology': 'LTE'
+        'technology': '4G'
     })
 
     
@@ -155,7 +162,7 @@ def select_operator():
         'frequency': 1920,
         'operator_name': 'DefaultOperator',
         'bandwidth': 10,
-        'technology': 'LTE'
+        'technology': '4G'
     })
 
     
@@ -267,6 +274,174 @@ def update_alias():
         return jsonify({'status': 'success', 'message': 'Alias updated successfully'})
     else:
         return jsonify({'status': 'error', 'message': 'Unique ID not found'}), 404
+#---------------------------------------------------------
+#  looping
+# --------------------------------------------------------
+@app.route('/loop')
+def loop():
+    conn = get_db_connection()
+    results = conn.execute('''
+        SELECT f.*, 
+               ocm.mnc, 
+               ocm.mcc, 
+               o.operator_name, 
+               c.country_name
+        FROM frequency_bands f
+        JOIN operator_frequency_mappings ofm ON f.id = ofm.frequency_band_id
+        JOIN operator_country_mappings ocm ON ofm.operator_country_id = ocm.id
+        JOIN operators o ON ocm.operator_id = o.id
+        JOIN countries c ON ocm.mcc = c.mcc
+        ORDER BY c.country_name, o.operator_name
+    ''').fetchall()
+    # Get distinct countries for the filter dropdown
+    countries = conn.execute('SELECT DISTINCT country_name FROM countries ORDER BY country_name').fetchall()
+
+    # Get distinct operators for the filter dropdown
+    operators = conn.execute('SELECT DISTINCT operator_name FROM operators ORDER BY operator_name').fetchall()
+
+    
+    conn.close()
+
+    return render_template("loop.html", results=results,countries=countries, operators=operators)
+@app.route("/loop/filter", methods=["GET"])
+def filter_loop():
+    country = request.args.get("country")
+    operator = request.args.get("operator")
+    technology = request.args.get("technology")
+
+    conn = get_db_connection()
+    query = '''
+        SELECT f.*, ocm.mnc, ocm.mcc, o.operator_name, c.country_name
+        FROM frequency_bands f
+        JOIN operator_frequency_mappings ofm ON f.id = ofm.frequency_band_id
+        JOIN operator_country_mappings ocm ON ofm.operator_country_id = ocm.id
+        JOIN operators o ON ocm.operator_id = o.id
+        JOIN countries c ON ocm.mcc = c.mcc
+        WHERE 1=1
+    '''
+    params = []
+
+    if country:
+        query += " AND c.country_name = ?"
+        params.append(country)
+    if operator:
+        query += " AND o.operator_name = ?"
+        params.append(operator)
+    if technology:
+        query += " AND f.technology = ?"
+        params.append(technology)
+
+    query += " ORDER BY c.country_name, o.operator_name"
+
+    results = conn.execute(query, params).fetchall()
+    conn.close()
+
+    # Return JSON to populate the operator-list via JS
+    data = [
+        {
+            "operator_name": r["operator_name"],
+            "country_name": r["country_name"],
+            "mcc": r["mcc"],
+            "mnc": r["mnc"],
+            "earfcn": r["earfcn_arfcn"],
+            "frequency": r["frequency_mhz"],
+            "bandwidth": r["bandwidth_mhz"],
+            "technology": r["technology"]
+        } for r in results
+    ]
+    return jsonify(data)
+
+@app.route("/start_loop", methods=["POST"])
+def start_loop():
+    global loop_thread, loop_running
+    global  ENB_running,thread_enb,sp,current_operator
+    data = request.get_json()
+    operators = data["operators"]
+    interval = int(data["interval"])
+
+    if loop_running:
+        return jsonify({"status": "loop_already_running"})
+    if ENB_running:
+        return jsonify({"status": "ENB_already_running"})
+    
+    if loop_thread and loop_thread.is_alive():
+        return jsonify({"status": "loop_already_running"})
+    loop_event.clear()
+    tx_gain = session.get("current_settings", {}).get("tx_gain", 80)
+    def loop_task():
+        global loop_running, ENB_running, sp, thread_enb,current_operator
+        loop_running = True
+        current_operator = None
+        try:
+            #while loop_running:
+            while not loop_event.is_set():
+                for op in operators:
+                    #if not loop_running:
+                    #    break
+                    if loop_event.is_set():
+                        break
+
+                    
+                    #args = [
+                    #    "./srsenb", "./enb.conf",
+                    #    f"--enb.mcc={op['mcc']}",
+                    #    f"--enb.mnc={op['mnc']}",
+                    #    f"--rf.dl_earfcn={op['earfcn']}",
+                    #    f"--rf.tx_gain={tx_gain}"
+                    #]
+                    args = {
+                       "mcc": op["mcc"],
+                       "mnc": op["mnc"],
+                       "earfcn": op["earfcn"],
+                       "tx_gain": tx_gain
+                    }
+
+                    logger.info(f"Running: {args}")
+                    sp = execute_command_nonblocking("./srsenb", "./enb.conf", args)
+                    current_operator = op
+                    if sp is None:
+                        logger.error("Failed to start subprocess enodeb")
+                        loop_running = False
+                        break
+
+                    thread_enb = Thread(target=read_terminal, args=(sp,), daemon=True)
+                    thread_enb.start()
+                    ENB_running = True
+                    socketio.emit("ENB_status", {"status": "ENB started"})
+                    loop_event.wait(interval * 60)
+                    # Run for interval minutes
+                    #for i in range(interval * 60):
+                    #    if not loop_running:
+                    #        break
+                     #   time.sleep(1)
+
+                    stop_ENB()
+        finally:
+            loop_running = False
+            current_operator = None
+
+    loop_thread = threading.Thread(target=loop_task, daemon=True)
+    loop_thread.start()
+
+    return jsonify({"status": "started", "interval": interval, "count": len(operators)})
+
+@app.route("/loop_status")
+def loop_status():
+    global loop_running, ENB_running, current_operator
+    return jsonify({
+        "loop_running": loop_running,
+        "ENB_running": ENB_running,
+        "current_operator": current_operator if loop_running else None
+    })
+
+@app.route("/stop_loop", methods=["POST"])
+def stop_loop():
+    global loop_running
+    loop_event.set()
+    loop_running = False
+    stop_ENB()
+    return jsonify({"status": "stopped"})
+
 
 #-------------------------------------------------
 # send msg to newly connected clients
@@ -471,7 +646,7 @@ def start_ENB():
                   'frequency': 1920,
                   'operator_name': 'DefaultOperator',
                   'bandwidth': 10,
-                  'technology': 'LTE'
+                  'technology': '4G'
                 })
             sp=execute_command_nonblocking('./srsenb','./enb.conf',current_settings)   
             
@@ -553,14 +728,16 @@ def stop_ENB():
             stop_event.clear()
             socketio.emit('ENB_status', {'status': 'ENB stopped'})
             
-            return jsonify({'status': 'ENB stopped'})
-            
+            #return jsonify({'status': 'ENB stopped'})
+            return {'status': 'ENB stopped'}
         except Exception as e:
             logging.error(f"Error stopping ENB: {e}")
             ENB_running = False
-            return jsonify({'status': 'ENB stopped with errors'})
+            #return jsonify({'status': 'ENB stopped with errors'})
+            return {'status': 'ENB stopped with errors'}
     else:
-        return jsonify({'status': 'ENB is not running'})
+        #return jsonify({'status': 'ENB is not running'})
+        return {'status': 'ENB is not running'}
 
 @app.route('/ENB_status', methods=['GET'])
 def ENB_status():
@@ -572,6 +749,13 @@ def ENB_status():
 #
 #-----------------------------------------------------------------------
 
+def signal_handler(sig, frame):
+    print("Shutting down...")
+    stop_event.set()
+    server_thread.join()
+    server_status_thread.join()
+    sys.exit(0)
+
 def run_flask():
     socketio.run(app, host='0.0.0.0', port=5000)
 
@@ -579,14 +763,14 @@ if __name__ == '__main__':
 
     tscm_logo.cli()
     stop_event = threading.Event()
-
+    loop_event = threading.Event()
     server_thread = threading.Thread(target=run_flask)
     server_thread.start()
 
     server_status_thread = threading.Thread(target=update_server_status)
     server_status_thread.start()
 
-
+    #signal.signal(signal.SIGINT, signal_handler)
 '''
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)

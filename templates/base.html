@@ -28,6 +28,9 @@
                     <a class="nav-link" href="/settings">Settings</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="/loop">Loop</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="/status">Status</a>
                 </li>
                 <li class="nav-item">
@@ -35,7 +38,11 @@
                 </li>
             </ul>
         </div>
+        <div id="loop-status-bar" style="background:#222; color:#0f0; padding:4px; font-size:14px; display:none;">
+  Loop running: <span id="loop-status-text"></span>
+    </div>
     </nav>
+    
     <div class="container mt-4">
         {% block content %}{% endblock %}
     </div>
@@ -49,12 +56,31 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 -->
-	<!--
+	
     <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>
--->
+
+    <script>
+function updateLoopStatus() {
+    fetch("/loop_status").then(r => r.json()).then(data => {
+        const bar = document.getElementById("loop-status-bar");
+        const text = document.getElementById("loop-status-text");
+
+        if (data.loop_running) {
+            bar.style.display = "block";
+            text.textContent = `Current operator: ${data.current_operator?.operator_name || 'N/A'} (${data.current_operator?.mcc}/${data.current_operator?.mnc})`;
+        } else {
+            bar.style.display = "none";
+        }
+    });
+}
+
+// refresh every 5s
+setInterval(updateLoopStatus, 5000);
+updateLoopStatus();
+</script>
 </body>
 </html>

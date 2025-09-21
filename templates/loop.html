@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block body_class %}dark-theme{% endblock %}
+{% block content %}
+
+<h2>Operator Loop Control</h2>
+
+<!-- Filter form -->
+<form id="filter-form" class="mb-3">
+    <div class="row">
+        <div class="col-md-3">
+            <label>Country:</label>
+            <select name="country" id="country" class="form-select">
+                <option value="">All</option>
+                {% for country in countries %}
+                    <option value="{{ country.country_name }}">{{ country.country_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Operator:</label>
+            <select name="operator" id="operator" class="form-select">
+                <option value="">All</option>
+                {% for operator in operators %}
+                    <option value="{{ operator.operator_name }}">{{ operator.operator_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Technology:</label>
+            <select name="technology" id="technology" class="form-select">
+                <option value="">All</option>
+                <option value="4G">4G</option>
+                <option value="LTE">LTE</option>
+                <option value="5G">5G</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </div>
+</form>
+
+<!-- Interval input and loop control -->
+<div class="mb-3 row">
+    <div class="col-md-2">
+        <label>Interval (minutes):</label>
+        <input type="number" id="interval" value="5" min="1" class="form-control">
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button id="start-loop" class="btn btn-success w-100">Start Loop</button>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+        <button id="stop-loop" class="btn btn-danger w-100">Stop Loop</button>
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <span id="loop-status">Loop not running</span>
+    </div>
+</div>
+
+<!-- Operator selection -->
+<div id="operator-list" class="card p-3" style="max-height: 400px; overflow-y: auto;">
+    <!-- Filtered operators checkboxes will appear here -->
+</div>
+
+<script>
+const operatorListDiv = document.getElementById("operator-list");
+const loopStatus = document.getElementById("loop-status");
+
+// Fetch filtered operators
+document.getElementById("filter-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const country = document.getElementById("country").value;
+    const operator = document.getElementById("operator").value;
+    const technology = document.getElementById("technology").value;
+
+    fetch(`/loop/filter?country=${country}&operator=${operator}&technology=${technology}`)
+        .then(r => r.json())
+        .then(data => {
+            operatorListDiv.innerHTML = "";
+            data.forEach(r => {
+                const label = document.createElement("label");
+                label.innerHTML = `<input type="checkbox"
+                    data-operator="${r.operator_name}"
+                    data-country="${r.country_name}"
+                    data-mcc="${r.mcc}"
+                    data-mnc="${r.mnc}"
+                    data-earfcn="${r.earfcn}"
+                    data-frequency="${r.frequency}"
+                    data-bandwidth="${r.bandwidth}"
+                    data-technology="${r.technology}">
+                    ${r.operator_name} (${r.mnc}/${r.mcc}) ${r.frequency} MHz (${r.earfcn}) [${r.technology}]`;
+                operatorListDiv.appendChild(label);
+                operatorListDiv.appendChild(document.createElement("br"));
+            });
+        });
+});
+
+// Start loop
+document.getElementById("start-loop").addEventListener("click", function() {
+    const interval = document.getElementById("interval").value;
+    const selected = [];
+    operatorListDiv.querySelectorAll("input:checked").forEach(cb => {
+        selected.push({
+            operator_name: cb.dataset.operator,
+            country_name: cb.dataset.country,
+            mcc: cb.dataset.mcc,
+            mnc: cb.dataset.mnc,
+            earfcn: cb.dataset.earfcn,
+            frequency: cb.dataset.frequency,
+            bandwidth: cb.dataset.bandwidth,
+            technology: cb.dataset.technology
+        });
+    });
+
+    if (selected.length === 0) {
+        alert("Select at least one operator!");
+        return;
+    }
+
+    fetch("/start_loop", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({operators: selected, interval: interval})
+    }).then(r => r.json())
+      .then(res => {
+          if(res.status === "started") loopStatus.textContent = `Loop running every ${interval} min`;
+          else loopStatus.textContent = res.status;
+      });
+});
+
+// Stop loop
+document.getElementById("stop-loop").addEventListener("click", function() {
+    fetch("/stop_loop", {method: "POST"})
+        .then(r => r.json())
+        .then(res => {
+            loopStatus.textContent = "Loop stopped";
+        });
+});
+</script>
+
+{% endblock %}
