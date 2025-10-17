@@ -37,6 +37,7 @@ class EPCServer:
     omit = None
     target = None
     listenAddress = "0.0.0.0" # watch out ip address
+    #listenAddress = "192.168.50.77" # watch out ip address
     listenPort = 36412
     #clients = []
     #lock = threading.Lock()
